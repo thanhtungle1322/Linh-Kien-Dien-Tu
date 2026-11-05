@@ -82,11 +82,29 @@ NODE_ENV=development
 JWT_SECRET=electrohub_development_environment_jwt_secret_token_2026
 ```
 
-### 4.3 Khởi chạy máy chủ
+### 4.3 Khởi chạy máy chủ cục bộ
 ```bash
 npm start
 ```
 Truy cập ứng dụng tại: [http://localhost:3000](http://localhost:3000)
+
+### 4.4 Triển khai lên Vercel (Deployment)
+Dự án đã được cấu hình sẵn Vercel Serverless Function qua `api/index.js` và `vercel.json`.
+
+**Cách 1: Triển khai qua Vercel Dashboard (Khuyên dùng)**
+1. Đăng nhập vào [https://vercel.com](https://vercel.com).
+2. Nhấn **Add New Project** -> Chọn **Import Git Repository** -> Chọn repository `thanhtungle1322/Linh-Kien-Dien-Tu`.
+3. Tại phần **Environment Variables**, cấu hình biến môi trường:
+   - `JWT_SECRET`: `electrohub_production_jwt_secret_token_2026`
+   - `NODE_ENV`: `production`
+4. Nhấn **Deploy**. Vercel sẽ tự động build và cấp domain trực tiếp dạng `https://linh-kien-dien-tu-xxx.vercel.app`.
+
+**Cách 2: Triển khai qua Vercel CLI**
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
 
 ### 4.4 Chạy bộ kiểm thử tự động
 ```bash
