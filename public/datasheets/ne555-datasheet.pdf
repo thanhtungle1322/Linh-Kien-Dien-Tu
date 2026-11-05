@@ -1,0 +1,6 @@
+%PDF-1.4
+% ElectroHub Component Technical Datasheet
+% Component: NE555 Precision Timer
+% Timing from microseconds to hours, Operates in both astable and monostable modes
+% High output current can source or sink 200 mA, TTL compatible output
+EOF

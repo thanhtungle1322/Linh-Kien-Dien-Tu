@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElectroHub - Cửa Hàng Linh Kiện Điện Tử & IoT</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>Electro<span>Hub</span></h1>
+          <p class="tagline">Linh Kiện Điện Tử & Nhúng IoT</p>
+        </div>
+      </div>
+
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Tìm kiếm Arduino, ESP32, STM32, Cảm biến, IC...">
+        <button id="searchBtn">🔍</button>
+      </div>
+
+      <div class="nav-actions">
+        <div id="authStatus" class="auth-status">
+          <button id="loginBtn" class="btn btn-outline">Đăng Nhập</button>
+        </div>
+        <button id="cartBtn" class="btn btn-cart">
+          🛒 <span id="cartCount" class="badge">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">🚀 Nền Tảng Linh Kiện Chuẩn Công Nghiệp</div>
+      <h2>Phần Cứng Đột Phá Cho Dự Án Điện Tử & IoT Của Bạn</h2>
+      <p>Cung cấp đầy đủ vi điều khiển, module truyền thông RF, cảm biến môi trường và IC công suất chất lượng cao, đầy đủ tài liệu datasheet kỹ thuật.</p>
+      <div class="hero-stats">
+        <div class="stat-item"><span class="stat-number">5,000+</span><span class="stat-label">Linh Kiện Sẵn Kho</span></div>
+        <div class="stat-item"><span class="stat-number">100%</span><span class="stat-label">Chính Hãng & Datasheet</span></div>
+        <div class="stat-item"><span class="stat-number">24/7</span><span class="stat-label">Giao Hàng Toàn Quốc</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- Category Filter Bar -->
+    <div class="category-bar">
+      <span class="filter-label">Danh Mục:</span>
+      <button class="cat-pill active" data-category="All">Tất Cả</button>
+      <button class="cat-pill" data-category="Microcontroller">Vi Điều Khiển</button>
+      <button class="cat-pill" data-category="Wireless & IoT">Không Dây & IoT</button>
+      <button class="cat-pill" data-category="Sensors">Cảm Biến</button>
+      <button class="cat-pill" data-category="Power & IC">IC Nguồn & Định Thời</button>
+      <button class="cat-pill" data-category="Modules">Module Chức Năng</button>
+    </div>
+
+    <!-- Product Grid -->
+    <section class="products-section">
+      <div class="section-header">
+        <h3>Danh Sách Linh Kiện Nổi Bật</h3>
+        <span id="productTotalCount" class="meta-count">Đang tải...</span>
+      </div>
+      <div id="productGrid" class="product-grid">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Interactive Tools Section (Mapped to endpoints) -->
+    <section class="tools-section">
+      <div class="section-title">
+        <h3>⚙️ Tiện Ích Kỹ Thuật & Tra Cứu</h3>
+        <p>Hỗ trợ tra cứu datasheet, kiểm tra hóa đơn đơn hàng và trình tạo nhãn xem trước linh kiện</p>
+      </div>
+
+      <div class="tools-grid">
+        <!-- Tool 1: Live Preview Echo (products.js: GET /preview/echo) -->
+        <div class="tool-card">
+          <div class="tool-header">
+            <span class="tool-icon">🏷️</span>
+            <h4>Trình Tạo Nhãn Linh Kiện (Preview Echo)</h4>
+          </div>
+          <p class="tool-desc">Xem trước thông số kỹ thuật hoặc mã vạch linh kiện để in nhãn hộp linh kiện.</p>
+          <div class="form-group">
+            <input type="text" id="previewInput" placeholder="Nhập tên linh kiện, ví dụ: ESP32-WROOM-32 38-Pin">
+            <button id="previewBtn" class="btn btn-primary">Tạo Xem Trước</button>
+          </div>
+          <div id="previewResult" class="preview-box">
+            <span class="placeholder-text">Chưa có nội dung xem trước...</span>
+          </div>
+        </div>
+
+        <!-- Tool 2: Order Lookup (orders.js: GET /api/orders/:id) -->
+        <div class="tool-card">
+          <div class="tool-header">
+            <span class="tool-icon">📦</span>
+            <h4>Tra Cứu Hóa Đơn & Đơn Hàng (Order Tracker)</h4>
+          </div>
+          <p class="tool-desc">Kiểm tra thông tin trạng thái đơn hàng linh kiện bằng mã ID hóa đơn.</p>
+          <div class="form-group">
+            <input type="number" id="orderIdInput" placeholder="Ví dụ: 1001, 1002 (Cần Đăng Nhập)">
+            <button id="orderLookupBtn" class="btn btn-primary">Tra Cứu</button>
+          </div>
+          <div id="orderResult" class="order-box">
+            <span class="placeholder-text">Nhập ID đơn hàng và bấm tra cứu...</span>
+          </div>
+        </div>
+
+        <!-- Tool 3: Datasheet Downloader (files.js: GET /api/files/download) -->
+        <div class="tool-card">
+          <div class="tool-header">
+            <span class="tool-icon">📄</span>
+            <h4>Tải Tài Liệu Kỹ Thuật (Datasheet)</h4>
+          </div>
+          <p class="tool-desc">Tải sơ đồ chân, đặc tính điện áp và hướng dẫn sử dụng từ máy chủ tài liệu.</p>
+          <div class="form-group">
+            <select id="datasheetSelect">
+              <option value="arduino-uno-r3.pdf">arduino-uno-r3.pdf (ATmega328P)</option>
+              <option value="esp32-wroom-32.pdf">esp32-wroom-32.pdf (Dual-Core WiFi/BLE)</option>
+              <option value="stm32f103c8t6.pdf">stm32f103c8t6.pdf (ARM Cortex-M3)</option>
+              <option value="dht22-sensor.pdf">dht22-sensor.pdf (Nhiệt ẩm AM2302)</option>
+              <option value="lm7805-datasheet.pdf">lm7805-datasheet.pdf (Ổn áp 5V)</option>
+              <option value="ne555-datasheet.pdf">ne555-datasheet.pdf (IC định thời)</option>
+            </select>
+            <button id="downloadDatasheetBtn" class="btn btn-primary">Tải Về PDF</button>
+          </div>
+          <div class="info-note">
+            💡 Endpoint bảo mật: Sử dụng path sanitization và thư mục cách ly an toàn.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <span id="closeModal" class="close-btn">&times;</span>
+      <div class="modal-header">
+        <h3>🔐 Đăng Nhập Tài Khoản ElectroHub</h3>
+        <p>Đăng nhập để xem đơn hàng cá nhân và đặt mua linh kiện</p>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <div class="input-field">
+          <label for="loginUsername">Tên đăng nhập:</label>
+          <input type="text" id="loginUsername" required placeholder="thanhtung hoặc admin">
+        </div>
+        <div class="input-field">
+          <label for="loginPassword">Mật khẩu:</label>
+          <input type="password" id="loginPassword" required placeholder="Password123! hoặc AdminPassword123!">
+        </div>
+        <div class="credential-hints">
+          <small>🔑 Tài khoản mẫu: <b>thanhtung</b> (pass: <code>Password123!</code>) | <b>admin</b> (pass: <code>AdminPassword123!</code>)</small>
+        </div>
+        <button type="submit" class="btn btn-submit">Đăng Nhập Ngay</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cart Drawer -->
+  <div id="cartDrawer" class="cart-drawer">
+    <div class="cart-header">
+      <h3>Giỏ Hàng Của Bạn</h3>
+      <button id="closeCart" class="close-btn">&times;</button>
+    </div>
+    <div id="cartItemsList" class="cart-items">
+      <p class="empty-cart-msg">Giỏ hàng đang trống.</p>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total-row">
+        <span>Tổng cộng:</span>
+        <span id="cartTotalSum" class="total-price">0 đ</span>
+      </div>
+      <button id="checkoutBtn" class="btn btn-checkout">Tiến Hành Thanh Toán</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <p>© 2026 ElectroHub Store. Bản phát hành v1.0.0 (Clean Architecture & Production Hardened).</p>
+      <p class="dev-badge">Designed for ACVIS Security Pipeline Verification</p>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

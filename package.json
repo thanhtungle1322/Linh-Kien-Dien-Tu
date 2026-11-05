@@ -1,0 +1,33 @@
+{
+  "name": "linh-kien-dien-tu",
+  "version": "1.0.0",
+  "description": "ElectroHub - Electronic Components E-Commerce Platform & ACVIS Benchmark Suite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/**/*.test.js",
+    "apply-vulns": "node scripts/apply-vulnerabilities.js",
+    "restore-clean": "node scripts/restore-clean.js"
+  },
+  "keywords": [
+    "electronic-components",
+    "arduino",
+    "esp32",
+    "stm32",
+    "iot",
+    "ecommerce",
+    "express"
+  ],
+  "author": "thanhtungle1322",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "escape-html": "^1.0.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  }
+}

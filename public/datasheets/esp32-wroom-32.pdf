@@ -1,0 +1,8 @@
+%PDF-1.4
+% ElectroHub Component Technical Datasheet
+% Component: Espressif ESP32-WROOM-32 Wi-Fi & Bluetooth Module
+% CPU: Xtensa Dual-Core 32-bit LX6 microprocessor up to 240 MHz
+% Wireless: Wi-Fi 802.11 b/g/n, Bluetooth v4.2 BR/EDR and BLE
+% Peripherals: Capacitive touch, ADCs, DACs, UART, SPI, I2C, PWM
+% Operating Voltage: 3.0V ~ 3.6V, Operating Current: Average 80 mA
+EOF

@@ -1,0 +1,7 @@
+%PDF-1.4
+% ElectroHub Component Technical Datasheet
+% Component: DHT22 (AM2302) High Precision Digital Temperature & Humidity Sensor
+% Power supply: 3.3-6V DC, Output signal: digital signal via single-bus
+% Humidity range: 0-100%RH, Humidity accuracy: +-2%RH
+% Temperature range: -40 to 80 Celsius, Temperature accuracy: +-0.5 Celsius
+EOF

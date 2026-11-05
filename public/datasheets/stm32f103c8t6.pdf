@@ -1,0 +1,7 @@
+%PDF-1.4
+% ElectroHub Component Technical Datasheet
+% Component: STM32F103C8T6 ARM Cortex-M3 Minimal System Development Board
+% Core: ARM 32-bit Cortex-M3 CPU, Max Frequency: 72 MHz
+% Memories: 64 Kbytes of Flash memory, 20 Kbytes of SRAM
+% Timers: 7 timers, Communication: 2 x I2C, 3 x USART, 2 x SPI, CAN, USB 2.0
+EOF
