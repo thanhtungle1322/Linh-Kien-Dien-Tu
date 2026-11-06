@@ -1,5 +1,27 @@
 # MongoDB Atlas / Vercel handoff
 
+## Sequential ACVIS benchmark — step 1
+
+- Clean restore point: `2efa517`. This step introduces only CWE-89 in
+  `routes/auth.js`, POST `/api/auth/login`, by interpolating request credentials
+  into SQL and passing the SQL to `dbConnection.query` without bound parameters.
+- Intended catalog record: `6a9ad52b011ecda8a0e8e4d4` / `cn_664` (alternative
+  `6a990927011ecda8a0e8bc75` / `appointment_00080`). Exact scan matching is pending.
+- JWT secret stays environment-backed; XSS, traversal and IDOR remain clean.
+- This is a static-only SQL benchmark with MongoDB. Login now returns HTTP 500;
+  MongoDB connectivity and the product catalog are expected to keep working.
+- Clean-baseline tests depending on successful login are expected to fail. Do
+  not weaken those tests to conceal the intentional benchmark regression.
+- Do not apply the all-five script on this intermediate state; restore from
+  the clean commit first. Wait for ACVIS scan evidence before the next weakness.
+- Verification: `node --check routes/auth.js` and patch integrity passed.
+  Clean suite: 15 passed / 11 failed (intentional login regression and all-five
+  harness requires a clean baseline). No test assertions were disabled/changed.
+  Local HTTP with real Atlas: health/catalog 200, raw SQL login 500, escaped echo
+  JSON 200, traversal 404, own order 200 and cross-user order 403. Test customer
+  JWT was minted locally with configured secret, never printed. Independent
+  Standards and Spec review: 0 blockers. Exact ACVIS matching remains pending.
+
 ## Connection diagnosis follow-up
 
 - Confirmed local root cause: URI password retained the template's outer angle
