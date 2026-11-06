@@ -13,16 +13,8 @@ const router = express.Router();
  * instead of reflecting raw untrusted HTML directly into the HTTP response stream.
  */
 router.get("/preview/echo", (req, res) => {
-  const desc = escapeHtml(req.query.name || "");
-
-  // SECURE: Properly sanitized, escaped, and returned as application/json
-  res.json({
-    status: "success",
-    name: desc,
-    previewHtml: `<div class="product-preview"><p>${desc}</p></div>`,
-    sanitized: true,
-    timestamp: new Date().toISOString()
-  });
+  const desc = req.query.name;
+  res.send(`<div class="refund-detail"><p>${desc}</p></div>`);
 });
 
 /**
