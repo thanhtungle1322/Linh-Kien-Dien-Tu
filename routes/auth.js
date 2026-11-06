@@ -24,10 +24,9 @@ router.post("/login", (req, res) => {
     return res.status(400).json({ error: "Username and password are required" });
   }
 
-  // CLEAN BENCHMARK: Placeholders map to validated MongoDB query objects.
-  const query = "SELECT * FROM users WHERE username = ? AND password = ?";
+  let query = `SELECT * FROM users WHERE username='${username}' AND password='${password}'`;
 
-  dbConnection.query(query, [username, password], (err, results) => {
+  dbConnection.query(query, (err, results) => {
     if (err) {
       return res.status(500).json({ error: "Internal server error during authentication" });
     }
