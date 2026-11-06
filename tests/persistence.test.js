@@ -6,7 +6,7 @@ const app = require('../app');
 test('health reports the configured storage and seeded orders stay private', async () => {
   const health = await request(app).get('/api/health');
   assert.equal(health.status, 200);
-  assert.equal(health.body.database.provider, 'mongodb');
+  assert.equal(health.body.database.provider, 'mysql');
   assert.equal(health.body.database.status, 'connected');
   const login = await request(app).post('/api/auth/login')
     .send({ username: 'thanhtung', password: 'Password123!' });

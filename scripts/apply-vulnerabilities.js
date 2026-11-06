@@ -43,13 +43,13 @@ authContent = replaceOnce(authContent,
 );
 
 // Replace parameterized query with string interpolation (CWE-89: cn_664)
-const safeAuthBlock = `  // CLEAN BENCHMARK: Placeholders map to validated MongoDB query objects.
-  const query = "SELECT * FROM users WHERE username = ? AND password = ?";
+const safeAuthBlock = `  // CLEAN BENCHMARK: MySQL server-side prepared statement.
+  const query = "SELECT * FROM electrohub_users WHERE username = ? AND CAST(password AS BINARY) = CAST(? AS BINARY)";
 
   dbConnection.query(query, [username, password], (err, results) => {`;
 
 const vulnAuthBlock = `  // VULNERABLE: Direct string interpolation into SQL query (CWE-89 / cn_664)
-  let query = \`SELECT * FROM users WHERE username='\${username}' AND password='\${password}'\`;
+  let query = \`SELECT * FROM electrohub_users WHERE username='\${username}' AND password='\${password}'\`;
 
   dbConnection.query(query, (err, results) => {`;
 
@@ -61,16 +61,14 @@ const productsPath = path.join(rootDir, 'routes', 'products.js');
 let productsContent = fs.readFileSync(productsPath, 'utf8').replace(/\r\n/g, '\n');
 
 const safeProductsBlock = `router.get("/preview/echo", (req, res) => {
-  const desc = escapeHtml(req.query.name || "");
-
-  // SECURE: Properly sanitized, escaped, and returned as application/json
-  res.json({
-    status: "success",
-    name: desc,
-    previewHtml: \`<div class="product-preview"><p>\${desc}</p></div>\`,
-    sanitized: true,
-    timestamp: new Date().toISOString()
-  });
+  const desc = req.query.name || '';
+  const sanitizedDesc = desc
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  res.send(\`<div class="refund-detail"><p>\${sanitizedDesc}</p></div>\`);
 });`;
 
 const vulnProductsBlock = `router.get("/preview/echo", (req, res) => {
@@ -163,4 +161,4 @@ for (const [target, original] of originals) {
   fs.writeFileSync(path.join(backupDir, path.basename(target)), original, 'utf8');
 }
 for (const [target, source] of changes) fs.writeFileSync(target, source, 'utf8');
-console.log('Applied all 5 static benchmark patterns. CWE-89 is static-only with MongoDB.');
+console.log('Applied all 5 benchmark patterns. SQL uses the real MySQL engine.');

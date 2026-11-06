@@ -1,7 +1,6 @@
 /**
- * ElectroHub Database Layer
- * Provides data access models for Users, Electronic Component Products, Orders, and Datasheets.
- * Supports both parameterized queries and standard ORM findOne methods.
+ * ElectroHub seed fixtures, loaded only by the explicit seed command/tests.
+ * Runtime data is stored in the MonsterASP SQL tables, never these arrays.
  */
 
 // Initial seed products for electronic components store

@@ -1,125 +1,138 @@
-let client;
-let connecting;
+const mysql = require('mysql2/promise');
+const { randomInt } = require('node:crypto');
+let pool;
 
-const failureCodes = new Set(['MONGODB_URI_MISSING', 'MONGODB_DB_NAME_MISSING',
-  'MONGODB_URI_INVALID', 'MONGODB_AUTH_FAILED', 'MONGODB_PERMISSION_DENIED',
-  'MONGODB_DNS_FAILED', 'MONGODB_NETWORK_FAILED', 'MONGODB_CONNECTION_FAILED']);
-function failureCode(error) {
-  if (failureCodes.has(error?.code)) return error.code;
-  if (error?.code === 18) return 'MONGODB_AUTH_FAILED';
-  if (error?.code === 8000 && /bad auth|authentication failed/i.test(error?.message || '')) return 'MONGODB_AUTH_FAILED';
-  if (error?.code === 13) return 'MONGODB_PERMISSION_DENIED';
-  if (error?.name === 'MongoParseError' || error?.name === 'MongoInvalidArgumentError') return 'MONGODB_URI_INVALID';
-  if (['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL', 'ECONNREFUSED', 'ETIMEOUT'].includes(error?.code) &&
-      String(error?.syscall || '').includes('query')) return 'MONGODB_DNS_FAILED';
-  if (['MongoServerSelectionError', 'MongoNetworkError', 'MongoNetworkTimeoutError'].includes(error?.name)) {
-    return 'MONGODB_NETWORK_FAILED';
+function getPool() {
+  for (const name of ['MYSQL_HOST', 'MYSQL_DATABASE', 'MYSQL_USER', 'MYSQL_PASSWORD']) {
+    if (!process.env[name]) throw Object.assign(new Error('Missing database configuration'), { code: name + '_MISSING' });
   }
-  return 'MONGODB_CONNECTION_FAILED';
+  const port = Number(process.env.MYSQL_PORT || 3306);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw Object.assign(new Error('Invalid database port'), { code: 'MYSQL_PORT_INVALID' });
+  }
+  if (!pool) pool = mysql.createPool({
+    host: process.env.MYSQL_HOST, port, database: process.env.MYSQL_DATABASE,
+    user: process.env.MYSQL_USER, password: process.env.MYSQL_PASSWORD,
+    ssl: { rejectUnauthorized: true, verifyIdentity: true, minVersion: 'TLSv1.2' },
+    connectionLimit: 5, maxIdle: 2, idleTimeout: 60000,
+    waitForConnections: true, queueLimit: 20, connectTimeout: 10000,
+    enableKeepAlive: true, multipleStatements: false,
+    charset: 'utf8mb4', decimalNumbers: true, dateStrings: true
+  });
+  return pool;
 }
 function diagnostics(error) {
-  const names = new Set(['Error', 'TypeError', 'MongoServerError', 'MongoAPIError',
-    'MongoParseError', 'MongoInvalidArgumentError', 'MongoServerSelectionError',
-    'MongoNetworkError', 'MongoNetworkTimeoutError', 'MongoRuntimeError', 'MongoTopologyClosedError']);
-  const codes = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL', 'ECONNREFUSED', 'ETIMEOUT',
-    'ETIMEDOUT', 'ECONNRESET', 'ERR_INVALID_URL', 'ERR_INVALID_ARG_TYPE']);
-  const name = error?.driverName || error?.name;
-  const code = error?.driverCode ?? error?.code;
-  return { errorCode: failureCode(error),
-    ...(names.has(name) ? { driverName: name } : {}),
-    ...(Number.isSafeInteger(code) || codes.has(code) ? { driverCode: code } : {}) };
+  const configCodes = new Set(['MYSQL_HOST_MISSING', 'MYSQL_DATABASE_MISSING',
+    'MYSQL_USER_MISSING', 'MYSQL_PASSWORD_MISSING', 'MYSQL_PORT_INVALID']);
+  const categories = {
+    ER_ACCESS_DENIED_ERROR: 'MYSQL_AUTH_FAILED', ER_DBACCESS_DENIED_ERROR: 'MYSQL_PERMISSION_DENIED',
+    ER_TABLEACCESS_DENIED_ERROR: 'MYSQL_PERMISSION_DENIED', ER_BAD_DB_ERROR: 'MYSQL_DATABASE_NOT_FOUND',
+    ER_NO_SUCH_TABLE: 'MYSQL_SCHEMA_MISSING', ENOTFOUND: 'MYSQL_DNS_FAILED', EAI_AGAIN: 'MYSQL_DNS_FAILED',
+    ECONNREFUSED: 'MYSQL_NETWORK_FAILED', ETIMEDOUT: 'MYSQL_NETWORK_FAILED',
+    ECONNRESET: 'MYSQL_NETWORK_FAILED', PROTOCOL_CONNECTION_LOST: 'MYSQL_NETWORK_FAILED',
+    CERT_HAS_EXPIRED: 'MYSQL_TLS_FAILED', ERR_TLS_CERT_ALTNAME_INVALID: 'MYSQL_TLS_FAILED',
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: 'MYSQL_TLS_FAILED', HANDSHAKE_NO_SSL_SUPPORT: 'MYSQL_TLS_FAILED'
+  };
+  return { errorCode: configCodes.has(error?.code) ? error.code : categories[error?.code] || 'MYSQL_CONNECTION_FAILED',
+    ...(Number.isSafeInteger(error?.errno) ? { driverCode: error.errno } : {}) };
 }
-
-async function getDatabase() {
-  if (!process.env.MONGODB_URI) throw Object.assign(new Error('Set MONGODB_URI'), { code: 'MONGODB_URI_MISSING' });
-  if (!process.env.MONGODB_DB_NAME) throw Object.assign(new Error('Set MONGODB_DB_NAME'), { code: 'MONGODB_DB_NAME_MISSING' });
-  if (!connecting) {
-    const { MongoClient } = require('mongodb');
-    client = new MongoClient(process.env.MONGODB_URI, {
-      maxPoolSize: 5, serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 5000, socketTimeoutMS: 5000
-    });
-    const current = client;
-    connecting = current.connect().then(() => current.db(process.env.MONGODB_DB_NAME))
-      .catch(async error => {
-        connecting = undefined;
-        await current.close().catch(() => {});
-        throw Object.assign(new Error('MongoDB connection failed'), diagnostics(error), { code: failureCode(error) });
-      });
-  }
-  return connecting;
+const statement = sql => ({ sql, timeout: 10000 });
+async function execute(sql, params = []) {
+  const [rows] = await getPool().execute(statement(sql), params);
+  return rows;
 }
 async function closeDatabase() {
-  if (client) await client.close();
-  client = undefined;
-  connecting = undefined;
+  const current = pool;
+  pool = undefined;
+  if (current) await current.end();
 }
 async function health() {
-  await (await getDatabase()).command({ ping: 1 });
-  return { provider: 'mongodb', status: 'connected' };
+  await execute('SELECT 1 AS ok');
+  return { provider: 'mysql', status: 'connected' };
 }
-async function collection(name) {
-  return (await getDatabase()).collection(name);
+
+// Bound calls use server-side prepared statements. Raw benchmark calls use the
+// real SQL engine with a single statement; no SQL emulation or MongoDB fallback.
+const dbConnection = {
+  query(sql, paramsOrCallback, callback) {
+    const bound = Array.isArray(paramsOrCallback);
+    const done = bound ? callback : paramsOrCallback;
+    Promise.resolve().then(() => bound ? execute(sql, paramsOrCallback)
+      : getPool().query(statement(sql)).then(([rows]) => rows))
+      .then(rows => done(null, rows), error => done(error));
+  }
+};
+function orderWhere(where = {}) {
+  const clauses = [], params = [];
+  for (const key of Object.keys(where)) {
+    if (!['id', 'userId'].includes(key)) throw new Error('Unsupported order filter');
+    if (!Number.isSafeInteger(where[key])) return { sql: ' WHERE 1 = 0', params: [] };
+    clauses.push(key === 'id' ? 'id = ?' : 'userId = ?');
+    params.push(where[key]);
+  }
+  return { sql: clauses.length ? ' WHERE ' + clauses.join(' AND ') : '', params };
 }
-const projection = { _id: 0 };
+function hydrateOrder(row) {
+  return row ? { ...row, items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items } : null;
+}
 const db = {
-  users: {
-    async findOne(options = {}) {
-      return (await collection('users')).findOne(options.where || {}, { projection });
-    }
-  },
   products: {
     async findAll(category) {
-      const filter = !category || category === 'All' ? {} : { category };
-      return (await collection('products')).find(filter, {
-        projection, collation: { locale: 'en', strength: 2 }
-      }).toArray();
+      return !category || category === 'All'
+        ? execute('SELECT * FROM electrohub_products ORDER BY id')
+        : execute('SELECT * FROM electrohub_products WHERE category = ? ORDER BY id', [category]);
     },
     async findById(id) {
-      return (await collection('products')).findOne({ id: Number(id) }, { projection });
+      const value = Number(id);
+      if (!Number.isSafeInteger(value)) return null;
+      return (await execute('SELECT * FROM electrohub_products WHERE id = ?', [value]))[0] || null;
     }
   },
   orders: {
     async findOne(options = {}) {
-      return (await collection('orders')).findOne(options.where || {}, { projection });
+      const filter = orderWhere(options.where);
+      return hydrateOrder((await execute('SELECT * FROM electrohub_orders' + filter.sql + ' LIMIT 1', filter.params))[0]);
     },
     async findAll(options = {}) {
-      return (await collection('orders')).find(options.where || {}, { projection }).toArray();
+      const filter = orderWhere(options.where);
+      return (await execute('SELECT * FROM electrohub_orders' + filter.sql + ' ORDER BY id', filter.params)).map(hydrateOrder);
     },
     async create(data) {
-      const { randomInt } = require('node:crypto');
-      const order = { ...data, id: randomInt(1000000, 281474976710655),
+      const row = { ...data, id: randomInt(1000000, 281474976710655),
         createdAt: new Date().toISOString(), status: 'Đang xử lý' };
-      await (await collection('orders')).insertOne({ ...order });
-      return order;
+      await execute(`INSERT INTO electrohub_orders
+        (id, userId, customerName, items, totalAmount, shippingAddress, paymentMethod, status, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [row.id, row.userId, row.customerName,
+        JSON.stringify(row.items), row.totalAmount, row.shippingAddress, row.paymentMethod, row.status, row.createdAt]);
+      return row;
     }
-  }
-};
-
-// Compatibility seam for the static CWE-89 benchmark. MongoDB never executes SQL.
-const dbConnection = {
-  query(sql, params, callback) {
-    if (typeof params === 'function') {
-      return params(new Error('Raw SQL is unavailable with MongoDB; static benchmark only'));
-    }
-    if (!Array.isArray(params) || params.length !== 2 || params.some(v => typeof v !== 'string')) {
-      return callback(new Error('Login requires string credentials'));
-    }
-    db.users.findOne({ where: { username: params[0], password: params[1] } })
-      .then(user => callback(null, user ? [user] : []), error => callback(error));
   }
 };
 async function seedDatabase() {
+  const schema = require('node:fs').readFileSync(require('node:path').join(__dirname, 'schema.sql'), 'utf8');
+  for (const sql of schema.split(';').map(sql => sql.trim()).filter(Boolean)) await execute(sql);
   const { initialProducts, usersTable, ordersTable } = require('./seed-data');
-  const database = await getDatabase();
-  for (const [name, rows] of Object.entries({ users: usersTable, products: initialProducts, orders: ordersTable })) {
-    const target = database.collection(name);
-    await target.createIndex({ id: 1 }, { unique: true });
-    if (name === 'users') await target.createIndex({ username: 1 }, { unique: true });
-    if (name === 'orders') await target.createIndex({ userId: 1 });
-    await target.bulkWrite(rows.map(row => ({ updateOne: {
-      filter: { id: row.id }, update: { $setOnInsert: row }, upsert: true
-    } })));
-  }
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const groups = [
+      ['INSERT INTO electrohub_users (id, username, password, email, role, fullName) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
+        ['id', 'username', 'password', 'email', 'role', 'fullName'], usersTable],
+      ['INSERT INTO electrohub_products (id, name, category, price, stock, rating, description, datasheet, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
+        ['id', 'name', 'category', 'price', 'stock', 'rating', 'description', 'datasheet', 'image'], initialProducts],
+      ['INSERT INTO electrohub_orders (id, userId, customerName, items, totalAmount, shippingAddress, paymentMethod, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
+        ['id', 'userId', 'customerName', 'items', 'totalAmount', 'shippingAddress', 'paymentMethod', 'status', 'createdAt'], ordersTable]
+    ];
+    for (const [sql, columns, rows] of groups) {
+      for (const row of rows) {
+        await connection.execute(statement(sql),
+          columns.map(key => key === 'items' ? JSON.stringify(row[key]) : row[key]));
+      }
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
 }
 module.exports = { db, dbConnection, health, closeDatabase, seedDatabase, diagnostics };

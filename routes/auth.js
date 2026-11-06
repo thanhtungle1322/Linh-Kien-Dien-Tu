@@ -6,9 +6,9 @@ const { authenticateToken } = require("../middleware/auth");
 const router = express.Router();
 
 /**
- * SECURE IMPLEMENTATION (Commit 1 - Clean Release):
+ * CLEAN IMPLEMENTATION:
  * 1. Hardcoded Secret (CWE-798): Loads JWT_SECRET dynamically from process.env (No exposed keys).
- * 2. Static CWE-89 benchmark: placeholder seam maps to MongoDB, not a SQL engine.
+ * 2. Bound login parameters use a real MySQL server-side prepared statement.
  */
 const JWT_SECRET = require('../config/auth').secret;
 
@@ -24,9 +24,10 @@ router.post("/login", (req, res) => {
     return res.status(400).json({ error: "Username and password are required" });
   }
 
-  let query = `SELECT * FROM users WHERE username='${username}' AND password='${password}'`;
+  // CLEAN BENCHMARK: MySQL server-side prepared statement.
+  const query = "SELECT * FROM electrohub_users WHERE username = ? AND CAST(password AS BINARY) = CAST(? AS BINARY)";
 
-  dbConnection.query(query, (err, results) => {
+  dbConnection.query(query, [username, password], (err, results) => {
     if (err) {
       return res.status(500).json({ error: "Internal server error during authentication" });
     }

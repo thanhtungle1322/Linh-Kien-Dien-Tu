@@ -23,6 +23,14 @@ test("Authentication & Security Baseline Tests", async (t) => {
     assert.equal(res.status, 401);
   });
 
+  await t.test('POST /api/auth/login rejects case and whitespace changes to passwords', async () => {
+    for (const password of ['password123!', 'Password123! ', 'Pássword123!']) {
+      const response = await request(app).post('/api/auth/login')
+        .send({ username: 'thanhtung', password });
+      assert.equal(response.status, 401);
+    }
+  });
+
   await t.test("POST /api/auth/login protects against SQL Injection attempt (CWE-89)", async () => {
     const res = await request(app)
       .post("/api/auth/login")

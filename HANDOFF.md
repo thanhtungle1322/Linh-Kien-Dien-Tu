@@ -1,101 +1,42 @@
-# MongoDB Atlas / Vercel handoff
+# MySQL migration handoff
 
-## Clean push diagnostic — stop after this commit
-
-- At the requester's latest direction, restore only `routes/auth.js` from clean
-  commit `2efa517` and push one clean commit; do not reintroduce a weakness yet.
-  This preserves Git history and does not modify ACVIS webhook configuration.
-- All 26 clean-baseline tests pass (MongoDB driver mocked); patch integrity
-  passes. Further vulnerable commits are deferred until ACVIS intake is checked.
-- Earlier push `3b418b2` exists on GitHub, but requester reports no ACVIS Scan Job.
-  GitHub Check Runs are empty; webhook admission remains unconfirmed. These
-  clean push is a delivery diagnostic, not evidence of a repaired webhook.
-
-## Sequential ACVIS benchmark — step 1
-
-- Clean restore point: `2efa517`. This step introduces only CWE-89 in
-  `routes/auth.js`, POST `/api/auth/login`, by interpolating request credentials
-  into SQL and passing the SQL to `dbConnection.query` without bound parameters.
-- Intended catalog record: `6a9ad52b011ecda8a0e8e4d4` / `cn_664` (alternative
-  `6a990927011ecda8a0e8bc75` / `appointment_00080`). Exact scan matching is pending.
-- JWT secret stays environment-backed; XSS, traversal and IDOR remain clean.
-- This is a static-only SQL benchmark with MongoDB. Login now returns HTTP 500;
-  MongoDB connectivity and the product catalog are expected to keep working.
-- Clean-baseline tests depending on successful login are expected to fail. Do
-  not weaken those tests to conceal the intentional benchmark regression.
-- Do not apply the all-five script on this intermediate state; restore from
-  the clean commit first. Wait for ACVIS scan evidence before the next weakness.
-- Verification: `node --check routes/auth.js` and patch integrity passed.
-  Clean suite: 15 passed / 11 failed (intentional login regression and all-five
-  harness requires a clean baseline). No test assertions were disabled/changed.
-  Local HTTP with real Atlas: health/catalog 200, raw SQL login 500, escaped echo
-  JSON 200, traversal 404, own order 200 and cross-user order 403. Test customer
-  JWT was minted locally with configured secret, never printed. Independent
-  Standards and Spec review: 0 blockers. Exact ACVIS matching remains pending.
-
-## Connection diagnosis follow-up
-
-- Confirmed local root cause: URI password retained the template's outer angle
-  brackets. Removing only those wrappers succeeded against real Atlas. Updated
-  the ignored local `.env` without printing credentials. Production subsequently
-  recovered after its configuration was updated/redeployed.
-- Atlas authentication code 8000 is now recognized; safe driver name/code can
-  accompany health errors. New assertions failed before the classifier update;
-  all 26 offline tests pass afterward. Independent re-review: 0 blockers.
-- Seed completed against the configured real storefront database, preserving
-  existing records. Real Atlas HTTP verification (no mocks): health 200, catalog
-  200 with 8 products, customer login 200, own order 200, cross-user order 403.
-  These are local HTTP requests using Atlas, not Vercel production evidence.
-- Production independently verified on `https://electroshopgood.vercel.app`:
-  health 200/connected, catalog 200/eight products, customer login 200, own order
-  200 and cross-user order 403. No mocked boundaries in these production probes.
-
-- Initial production GET `/api/health` reproduced HTTP 503 and POST
-  `/api/auth/login` HTTP 500, before the configuration correction above.
-- Added allowlisted `database.errorCode` to health and safe code-only logging.
-  Driver exception text, URI and credentials are not returned or logged here.
-- `npm test`: 26 passed with driver mocked, including missing URI/database name,
-  authentication, permission and network failures. New diagnostic assertions
-  failed before implementation. Patch integrity passed.
-- At initial diagnosis, credentials and Vercel log access were unavailable;
-  deployed diagnostics plus the later local `.env` established the auth failure.
-
-- Runtime storage: MongoDB only for users, products and orders. No RAM fallback.
-- `npm run seed:db` upserts seed records without replacing existing documents.
-- Shared JWT configuration requires a supplied secret (32+ characters).
-- `/api/health` pings MongoDB and returns 503 on configuration/connection failure.
-- Benchmark scripts support LF/CRLF, reject repeated apply, validate replacements
-  before writes and restore exact saved clean route files.
-- CWE-89 is a static-source benchmark only; MongoDB cannot run raw SQL. Vulnerable
-  login deliberately returns 500 instead of simulating a successful exploit.
-- README contains Atlas, Vercel, seed, integration test and benchmark instructions.
-
-## Verification
-
-- ElectroHub `npm test`: 24 passed. Tests cross Express HTTP with MongoDB driver
-  mocked. Auth, ownership, persistence API behavior, category validation and
-  benchmark apply/restore verified locally.
-- Vulnerable HTTP probes: XSS reflection, read-only traversal to package.json,
-  authenticated cross-user IDOR and raw-SQL rejection passed with mocked MongoDB.
-- `npm run test:integration`: correctly refuses to run without `.env.test`.
-  Actual Atlas connection, real persistence and Vercel deployment not performed.
-- Independent Standards and Spec review: 0 unresolved blockers after category
-  validation/collation and explicit integration configuration fixes.
-- ACVIS mandatory checks attempted separately: backend unavailable (no .NET SDK),
-  Python failed imports (missing pydantic/fastapi dependencies), frontend tests
-  341 passed / 4 failed, frontend typecheck/production build passed with warnings.
-  These checks exercise the separate ACVIS repository, not ElectroHub changes.
-- Changes must remain draft until required unavailable/failing checks are resolved.
-  No claim of production repair, exact rule-ID matches or five runtime exploit
-  confirmations is made. No deployment is authorized by this handoff.
-
-## Remaining environment steps
-
-1. Create Atlas database user and configure network access for local/Vercel egress.
-2. Set `MONGODB_URI`, `MONGODB_DB_NAME`, and random `JWT_SECRET` locally and Vercel.
-3. Seed the target database and verify `/api/health`, login and order persistence.
-4. Run `test:integration` on a separately seeded `_test` database.
-5. Re-run missing ACVIS checks in its prepared development environment if required
-   for publication; maintain Draft status until those checks pass.
-6. Deploy clean application only after explicit deployment authorization; validate
-   production independently. Test vulnerable commits in an isolated environment.
+- Requester asked to replace MongoDB with the supplied MonsterASP MySQL database.
+  Requester explicitly selected **clean baseline first** after newer commits
+  had introduced both CWE-89 and CWE-79. Login is restored clean here; concurrent
+  commit `c979eda` already fixed preview via HTML escaping, and is preserved.
+- mysql2 replaces the MongoDB driver. Verified TLS is required. A lazy pool is
+  reused per warm instance, limited to 5 connections, with statement/connect
+  timeouts and multiple statements disabled. No in-memory runtime fallback.
+- The target database already had four tables, including unrelated users,
+  products and orders. New tables use `electrohub_` prefix; old tables/data are
+  untouched. Schema is in `db/schema.sql`; seed uses fixed prepared statements
+  in a transaction and preserves existing rows on repeat.
+- The provided credentials are only in ignored local `.env`. They are not in
+  source, tests, commit messages or verification output. JWT secret is retained.
+- Clean login uses real server-side prepared statements and binary password
+  comparison (case, accent and trailing-space exact). TLS explicitly enables
+  mysql2 hostname identity verification as well as chain validation.
+  The raw query overload
+  remains available for future intentional CWE-89 testing against real SQL.
+- Offline SQL tests were red before implementation. Full clean suite passes
+  31 tests using a mocked mysql2 driver; benchmark LF/CRLF apply/restore passes.
+- Real MonsterASP connection and TLS verified; seed completed. Real SQL data
+  checks: eight products, decoded order item arrays, ownership filtering and
+  prepared login succeed. Earlier raw benchmark probe against seeded fixture
+  accounts confirmed SQL injection; the same payload with bound parameters
+  returned no match. That vulnerable route has since been restored clean.
+- Review found and fixed a real MySQL collation regression: wrong-case passwords
+  initially authenticated. Binary comparison now rejects case, accent and
+  trailing-space variants. Real SQL HTTP: valid login 200, each wrong variant
+  and injection 401, health 200, preview escaped. TLS hostname verification
+  remained enabled during these checks. Independent Standards/Spec re-review:
+  0 unresolved blockers. New TLS and auth assertions were red before fixes.
+- Local real-SQL HTTP verification and production verification are separate.
+  Vercel still needs MYSQL_HOST/PORT/DATABASE/USER/PASSWORD before migration can
+  work there. Keep existing JWT_SECRET/NODE_ENV; MongoDB variables are unused.
+- No ACVIS webhook behavior is changed. Prior clean pushes on Linh-Kien-Dien-Tu
+  and StudyRandomPRJ did not show new GitHub Check Runs at inspection time; this
+  migration does not establish webhook receipt or exact rule-ID matching.
+- Separate ACVIS repository checks retain prior environment limitations (no
+  .NET SDK, missing Python dependencies, frontend test failures); no ACVIS code
+  changes are part of this migration.

@@ -22,9 +22,9 @@ test("Electronic Components Catalog & Preview Echo Tests", async (t) => {
     const res = await request(app).get(`/preview/echo?name=${encodeURIComponent(maliciousScript)}`);
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers["content-type"].includes("application/json"), true);
+    assert.equal(res.headers["content-type"].includes("text/html"), true);
     // Verified that angle brackets are escaped into HTML entities
-    assert.equal(res.body.name.includes("<script>"), false);
-    assert.equal(res.body.name, "&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;");
+    assert.equal(res.text.includes("<script>"), false);
+    assert.equal(res.text, '<div class="refund-detail"><p>&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;</p></div>');
   });
 });

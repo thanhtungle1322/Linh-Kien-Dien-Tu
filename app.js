@@ -35,8 +35,8 @@ app.get("/api/health", async (req, res) => {
     database = await require('./db/database').health();
   } catch (error) {
     const details = require('./db/database').diagnostics(error);
-    console.error('MongoDB health check failed:', details);
-    return res.status(503).json({ status: 'unhealthy', database: { provider: 'mongodb', status: 'unavailable', ...details } });
+    console.error('MySQL health check failed:', details);
+    return res.status(503).json({ status: 'unhealthy', database: { provider: 'mysql', status: 'unavailable', ...details } });
   }
   res.json({
     status: "healthy",
