@@ -1,10 +1,25 @@
 let client;
 let connecting;
 
-async function getDatabase() {
-  if (!process.env.MONGODB_URI || !process.env.MONGODB_DB_NAME) {
-    throw new Error('Set MONGODB_URI and MONGODB_DB_NAME');
+const failureCodes = new Set(['MONGODB_URI_MISSING', 'MONGODB_DB_NAME_MISSING',
+  'MONGODB_URI_INVALID', 'MONGODB_AUTH_FAILED', 'MONGODB_PERMISSION_DENIED',
+  'MONGODB_DNS_FAILED', 'MONGODB_NETWORK_FAILED', 'MONGODB_CONNECTION_FAILED']);
+function failureCode(error) {
+  if (failureCodes.has(error?.code)) return error.code;
+  if (error?.code === 18) return 'MONGODB_AUTH_FAILED';
+  if (error?.code === 13) return 'MONGODB_PERMISSION_DENIED';
+  if (error?.name === 'MongoParseError' || error?.name === 'MongoInvalidArgumentError') return 'MONGODB_URI_INVALID';
+  if (['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL', 'ECONNREFUSED'].includes(error?.code) &&
+      String(error?.syscall || '').includes('query')) return 'MONGODB_DNS_FAILED';
+  if (['MongoServerSelectionError', 'MongoNetworkError', 'MongoNetworkTimeoutError'].includes(error?.name)) {
+    return 'MONGODB_NETWORK_FAILED';
   }
+  return 'MONGODB_CONNECTION_FAILED';
+}
+
+async function getDatabase() {
+  if (!process.env.MONGODB_URI) throw Object.assign(new Error('Set MONGODB_URI'), { code: 'MONGODB_URI_MISSING' });
+  if (!process.env.MONGODB_DB_NAME) throw Object.assign(new Error('Set MONGODB_DB_NAME'), { code: 'MONGODB_DB_NAME_MISSING' });
   if (!connecting) {
     const { MongoClient } = require('mongodb');
     client = new MongoClient(process.env.MONGODB_URI, {
@@ -13,10 +28,10 @@ async function getDatabase() {
     });
     const current = client;
     connecting = current.connect().then(() => current.db(process.env.MONGODB_DB_NAME))
-      .catch(async () => {
+      .catch(async error => {
         connecting = undefined;
         await current.close().catch(() => {});
-        throw new Error('MongoDB connection failed; check credentials and Atlas network access');
+        throw Object.assign(new Error('MongoDB connection failed'), { code: failureCode(error) });
       });
   }
   return connecting;
@@ -94,4 +109,4 @@ async function seedDatabase() {
     } })));
   }
 }
-module.exports = { db, dbConnection, health, closeDatabase, seedDatabase };
+module.exports = { db, dbConnection, health, closeDatabase, seedDatabase, failureCode };

@@ -78,6 +78,23 @@ Response thật còn có metadata/timestamp. Thiếu cấu hình hoặc ping DB 
 khởi tạo được. Khi gặp timeout: kiểm tra IP access list, cluster, database user,
 password encoding và biến môi trường đúng deployment; không đưa URI vào log.
 
+Health lỗi có thêm `database.errorCode`, chỉ chứa mã cố định, không chứa URI,
+password hoặc thông báo thô từ driver:
+
+| Mã | Kiểm tra |
+|---|---|
+| `MONGODB_URI_MISSING` | Deployment chưa nhận biến `MONGODB_URI` |
+| `MONGODB_DB_NAME_MISSING` | Deployment chưa nhận biến `MONGODB_DB_NAME` |
+| `MONGODB_URI_INVALID` | Cú pháp URI hoặc tham số kết nối |
+| `MONGODB_AUTH_FAILED` | Database username/password và authSource |
+| `MONGODB_PERMISSION_DENIED` | Quyền của database user |
+| `MONGODB_DNS_FAILED` | DNS/SRV của hostname trong URI |
+| `MONGODB_NETWORK_FAILED` | IP access list, cluster, mạng/TLS hoặc server selection |
+| `MONGODB_CONNECTION_FAILED` | Lỗi chưa phân loại; cần kiểm tra thêm |
+
+Các mã chỉ phân nhóm lỗi, không chứng minh một nguyên nhân cụ thể. Đổi biến
+Vercel cần deployment mới; đổi IP access list Atlas không cần build lại code.
+
 ## Tài khoản benchmark
 
 | User | Password mẫu | Quyền | Đơn sở hữu |

@@ -1,5 +1,17 @@
 # MongoDB Atlas / Vercel handoff
 
+## Connection diagnosis follow-up
+
+- Production GET `/api/health` reproduced HTTP 503 and POST `/api/auth/login`
+  HTTP 500. Database connection remains unverified/unavailable; no repair claim.
+- Added allowlisted `database.errorCode` to health and safe code-only logging.
+  Driver exception text, URI and credentials are not returned or logged here.
+- `npm test`: 26 passed with driver mocked, including missing URI/database name,
+  authentication, permission and network failures. New diagnostic assertions
+  failed before implementation. Patch integrity passed.
+- Atlas production credentials and Vercel log access are unavailable locally;
+  deployed diagnostics are needed to distinguish the actual failure category.
+
 - Runtime storage: MongoDB only for users, products and orders. No RAM fallback.
 - `npm run seed:db` upserts seed records without replacing existing documents.
 - Shared JWT configuration requires a supplied secret (32+ characters).
