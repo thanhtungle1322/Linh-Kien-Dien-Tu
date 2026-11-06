@@ -204,6 +204,11 @@ function initTools() {
 
     try {
       const res = await fetch(`/preview/echo?name=${encodeURIComponent(text)}`);
+      if ((res.headers.get('content-type') || '').includes('text/html')) {
+        // Display benchmark HTML as text; use the endpoint directly to verify reflection.
+        previewResult.textContent = await res.text();
+        return;
+      }
       const data = await res.json();
 
       // SECURE DISPLAY: Renders escaped text content safely

@@ -4,7 +4,7 @@
  * 
  * Rules applied:
  * 1. CWE-89  (cn_664): SQL injection via string interpolation in auth.js
- * 2. CWE-798 (gen_secret_javascript_5160): Hardcoded Stripe secret in auth.js
+ * 2. CWE-798 (gen_secret_javascript_5160): Synthetic hardcoded JWT secret in auth.js
  * 3. CWE-79  (javascript_express_js_refund_00009): Reflected XSS in products.js
  * 4. CWE-22  (javascript_express_js_warehouse_00061): Path traversal in files.js
  * 5. CWE-639 (gen_idor_javascript_2896): IDOR in orders.js
@@ -14,21 +14,36 @@ const fs = require('fs');
 const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
+const backupDir = path.join(rootDir, '.benchmark-clean');
+if (fs.existsSync(backupDir)) throw new Error('Restore the existing benchmark before applying again');
+const files = ['auth.js', 'products.js', 'files.js', 'orders.js'];
+const originals = new Map(files.map(name => {
+  const target = path.join(rootDir, 'routes', name);
+  return [target, fs.readFileSync(target, 'utf8')];
+}));
+const changes = new Map();
+function replaceOnce(source, before, after) {
+  if (!source.includes(before) || source.indexOf(before) !== source.lastIndexOf(before)) {
+    throw new Error('Expected exactly one clean benchmark block; no files changed');
+  }
+  return source.replace(before, after);
+}
+
 
 console.log('🔄 Applying 5 ACVIS vulnerabilities for Commit 2...');
 
 // 1 & 5: auth.js -> CWE-89 & CWE-798
 const authPath = path.join(rootDir, 'routes', 'auth.js');
-let authContent = fs.readFileSync(authPath, 'utf8');
+let authContent = fs.readFileSync(authPath, 'utf8').replace(/\r\n/g, '\n');
 
-// Replace JWT_SECRET with hardcoded secret (CWE-798: gen_secret_javascript_5160)
-authContent = authContent.replace(
-  /const JWT_SECRET = process\.env\.JWT_SECRET \|\| .*?;/,
-  `// Hardcoded Stripe Key [113118]\nconst JWT_SECRET = 'sk_live_37509765_secret_1595';`
+// Replace JWT_SECRET with a synthetic benchmark secret (CWE-798).
+authContent = replaceOnce(authContent,
+  "const JWT_SECRET = require('../config/auth').secret;",
+  "const JWT_SECRET = 'benchmark_only_7K2m9Q4v6R8x1P3a5N0c';\nrequire('../config/auth').secret = JWT_SECRET;"
 );
 
 // Replace parameterized query with string interpolation (CWE-89: cn_664)
-const safeAuthBlock = `  // SECURE: Parameterized query prevents SQL Injection (OWASP CWE-89 mitigation)
+const safeAuthBlock = `  // CLEAN BENCHMARK: Placeholders map to validated MongoDB query objects.
   const query = "SELECT * FROM users WHERE username = ? AND password = ?";
 
   dbConnection.query(query, [username, password], (err, results) => {`;
@@ -38,13 +53,12 @@ const vulnAuthBlock = `  // VULNERABLE: Direct string interpolation into SQL que
 
   dbConnection.query(query, (err, results) => {`;
 
-authContent = authContent.replace(safeAuthBlock, vulnAuthBlock);
-fs.writeFileSync(authPath, authContent, 'utf8');
-console.log('  ✅ Injected CWE-89 & CWE-798 into routes/auth.js');
+authContent = replaceOnce(authContent, safeAuthBlock, vulnAuthBlock);
+changes.set(authPath, authContent);
 
 // 2: products.js -> CWE-79 (javascript_express_js_refund_00009)
 const productsPath = path.join(rootDir, 'routes', 'products.js');
-let productsContent = fs.readFileSync(productsPath, 'utf8');
+let productsContent = fs.readFileSync(productsPath, 'utf8').replace(/\r\n/g, '\n');
 
 const safeProductsBlock = `router.get("/preview/echo", (req, res) => {
   const desc = escapeHtml(req.query.name || "");
@@ -64,13 +78,12 @@ const vulnProductsBlock = `router.get("/preview/echo", (req, res) => {
   res.send(\`<div class="refund-detail"><p>\${desc}</p></div>\`);
 });`;
 
-productsContent = productsContent.replace(safeProductsBlock, vulnProductsBlock);
-fs.writeFileSync(productsPath, productsContent, 'utf8');
-console.log('  ✅ Injected CWE-79 into routes/products.js');
+productsContent = replaceOnce(productsContent, safeProductsBlock, vulnProductsBlock);
+changes.set(productsPath, productsContent);
 
 // 3: files.js -> CWE-22 (javascript_express_js_warehouse_00061)
 const filesPath = path.join(rootDir, 'routes', 'files.js');
-let filesContent = fs.readFileSync(filesPath, 'utf8');
+let filesContent = fs.readFileSync(filesPath, 'utf8').replace(/\r\n/g, '\n');
 
 const safeFilesBlock = `router.get("/download", (req, res) => {
   const fileParam = req.query.file;
@@ -99,16 +112,15 @@ const safeFilesBlock = `router.get("/download", (req, res) => {
 
 const vulnFilesBlock = `router.get("/download", (req, res) => {
   const file = req.query.file;
-  res.sendFile('/uploads/warehouse/' + file);
+  res.sendFile(path.resolve(DATASHEETS_DIR, file));
 });`;
 
-filesContent = filesContent.replace(safeFilesBlock, vulnFilesBlock);
-fs.writeFileSync(filesPath, filesContent, 'utf8');
-console.log('  ✅ Injected CWE-22 into routes/files.js');
+filesContent = replaceOnce(filesContent, safeFilesBlock, vulnFilesBlock);
+changes.set(filesPath, filesContent);
 
 // 4: orders.js -> CWE-639 (gen_idor_javascript_2896)
 const ordersPath = path.join(rootDir, 'routes', 'orders.js');
-let ordersContent = fs.readFileSync(ordersPath, 'utf8');
+let ordersContent = fs.readFileSync(ordersPath, 'utf8').replace(/\r\n/g, '\n');
 
 const safeOrdersBlock = `router.get("/:id", authenticateToken, async (req, res) => {
   try {
@@ -133,13 +145,22 @@ const safeOrdersBlock = `router.get("/:id", authenticateToken, async (req, res) 
 });`;
 
 const vulnOrdersBlock = `// IDOR Vulnerability in Node.js [900875]
-router.get("/:id", async (req, res) => {
-  const data = await db.orders.findOne({ where: { id: req.params.id } });
-  res.json(data);
+router.get("/:id", authenticateToken, async (req, res, next) => {
+  try {
+    const data = await db.orders.findOne({ where: { id: Number(req.params.id) } });
+    if (!data) return res.status(404).json({ error: "Order not found" });
+    res.json(data);
+  } catch (error) { next(error); }
 });`;
 
-ordersContent = ordersContent.replace(safeOrdersBlock, vulnOrdersBlock);
-fs.writeFileSync(ordersPath, ordersContent, 'utf8');
-console.log('  ✅ Injected CWE-639 into routes/orders.js');
+ordersContent = replaceOnce(ordersContent, safeOrdersBlock, vulnOrdersBlock);
+changes.set(ordersPath, ordersContent);
 
-console.log('\\n✨ All 5 vulnerabilities successfully applied! Ready for Commit 2.\\n');
+
+// Validate every replacement before writing any target file.
+fs.mkdirSync(backupDir);
+for (const [target, original] of originals) {
+  fs.writeFileSync(path.join(backupDir, path.basename(target)), original, 'utf8');
+}
+for (const [target, source] of changes) fs.writeFileSync(target, source, 'utf8');
+console.log('Applied all 5 static benchmark patterns. CWE-89 is static-only with MongoDB.');

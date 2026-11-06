@@ -12,7 +12,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: "Access token required. Please log in." });
   }
 
-  const secret = process.env.JWT_SECRET || "electrohub_default_secret_dev_key";
+  const { secret } = require('../config/auth');
 
   jwt.verify(token, secret, (err, decodedUser) => {
     if (err) {

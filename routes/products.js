@@ -32,6 +32,9 @@ router.get("/preview/echo", (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const category = req.query.category;
+    if (category !== undefined && typeof category !== 'string') {
+      return res.status(400).json({ error: 'Category must be a string' });
+    }
     const products = await db.products.findAll(category);
     res.json({
       total: products.length,

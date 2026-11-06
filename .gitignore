@@ -8,3 +8,7 @@ Thumbs.db
 coverage/
 .idea/
 .vscode/
+
+.benchmark-clean/
+
+.env.test

@@ -8,9 +8,9 @@ const router = express.Router();
 /**
  * SECURE IMPLEMENTATION (Commit 1 - Clean Release):
  * 1. Hardcoded Secret (CWE-798): Loads JWT_SECRET dynamically from process.env (No exposed keys).
- * 2. SQL Injection (CWE-89): Uses parameterized prepared queries with placeholders [?].
+ * 2. Static CWE-89 benchmark: placeholder seam maps to MongoDB, not a SQL engine.
  */
-const JWT_SECRET = process.env.JWT_SECRET || "electrohub_default_secret_dev_key";
+const JWT_SECRET = require('../config/auth').secret;
 
 /**
  * POST /login and /api/auth/login
@@ -20,11 +20,11 @@ router.post("/login", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
-  if (!username || !password) {
+  if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
     return res.status(400).json({ error: "Username and password are required" });
   }
 
-  // SECURE: Parameterized query prevents SQL Injection (OWASP CWE-89 mitigation)
+  // CLEAN BENCHMARK: Placeholders map to validated MongoDB query objects.
   const query = "SELECT * FROM users WHERE username = ? AND password = ?";
 
   dbConnection.query(query, [username, password], (err, results) => {

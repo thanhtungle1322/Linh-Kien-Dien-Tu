@@ -29,12 +29,18 @@ app.get("/preview/echo", (req, res, next) => {
 });
 
 // 2. Health check & system info endpoint
-app.get("/api/health", (req, res) => {
+app.get("/api/health", async (req, res) => {
+  let database;
+  try {
+    database = await require('./db/database').health();
+  } catch {
+    return res.status(503).json({ status: 'unhealthy', database: { provider: 'mongodb', status: 'unavailable' } });
+  }
   res.json({
     status: "healthy",
+    database,
     service: "ElectroHub - Linh Kiện Điện Tử & IoT Store",
     version: "1.0.0",
-    securityAuditState: "CLEAN_V1",
     timestamp: new Date().toISOString()
   });
 });
