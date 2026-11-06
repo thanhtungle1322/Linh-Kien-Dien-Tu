@@ -7,14 +7,19 @@ const router = express.Router();
 /**
  * GET /preview/echo
  * Preview electronic component description or customer inquiry echo.
- * 
- * SECURE IMPLEMENTATION (Commit 1 - Clean Release):
- * CWE-79 (Reflected XSS): Sanitizes query input using escapeHtml() and returns structured JSON
- * instead of reflecting raw untrusted HTML directly into the HTTP response stream.
+ *
+ * ACVIS remediation (CWE-79): context-aware HTML output encoding before reflection,
+ * so user input is rendered as literal text instead of executable markup.
  */
 router.get("/preview/echo", (req, res) => {
-  const desc = req.query.name;
-  res.send(`<div class="refund-detail"><p>${desc}</p></div>`);
+  const desc = req.query.name || '';
+  const sanitizedDesc = desc
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  res.send(`<div class="refund-detail"><p>${sanitizedDesc}</p></div>`);
 });
 
 /**
