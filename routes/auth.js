@@ -6,10 +6,9 @@ const { authenticateToken } = require("../middleware/auth");
 const router = express.Router();
 
 /**
- * ACVIS BENCHMARK STEP 1 — CWE-89 only:
+ * SECURE IMPLEMENTATION (Commit 1 - Clean Release):
  * 1. Hardcoded Secret (CWE-798): Loads JWT_SECRET dynamically from process.env (No exposed keys).
- * 2. SQL string interpolation is intentionally unsafe for static scanning.
- *    MongoDB rejects raw SQL; this does not demonstrate a runtime SQL exploit.
+ * 2. Static CWE-89 benchmark: placeholder seam maps to MongoDB, not a SQL engine.
  */
 const JWT_SECRET = require('../config/auth').secret;
 
@@ -25,10 +24,10 @@ router.post("/login", (req, res) => {
     return res.status(400).json({ error: "Username and password are required" });
   }
 
-  // VULNERABLE BENCHMARK: User-controlled values reach the SQL query (CWE-89).
-  const query = `SELECT * FROM users WHERE username='${username}' AND password='${password}'`;
+  // CLEAN BENCHMARK: Placeholders map to validated MongoDB query objects.
+  const query = "SELECT * FROM users WHERE username = ? AND password = ?";
 
-  dbConnection.query(query, (err, results) => {
+  dbConnection.query(query, [username, password], (err, results) => {
     if (err) {
       return res.status(500).json({ error: "Internal server error during authentication" });
     }

@@ -1,5 +1,16 @@
 # MongoDB Atlas / Vercel handoff
 
+## Clean push diagnostic — stop after this commit
+
+- At the requester's latest direction, restore only `routes/auth.js` from clean
+  commit `2efa517` and push one clean commit; do not reintroduce a weakness yet.
+  This preserves Git history and does not modify ACVIS webhook configuration.
+- All 26 clean-baseline tests pass (MongoDB driver mocked); patch integrity
+  passes. Further vulnerable commits are deferred until ACVIS intake is checked.
+- Earlier push `3b418b2` exists on GitHub, but requester reports no ACVIS Scan Job.
+  GitHub Check Runs are empty; webhook admission remains unconfirmed. These
+  clean push is a delivery diagnostic, not evidence of a repaired webhook.
+
 ## Sequential ACVIS benchmark — step 1
 
 - Clean restore point: `2efa517`. This step introduces only CWE-89 in
