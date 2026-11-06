@@ -17,6 +17,8 @@ only. There is no in-memory database fallback. Requires Node.js 22 or newer.
 4. **Connect → Drivers → Node.js**: sao chép connection string `mongodb+srv://...`.
    Thay username/password; percent-encode ký tự đặc biệt trong username/password
    (ví dụ `@` thành `%40`). Không encode toàn bộ URI.
+   Xóa dấu `<` và `>` bao quanh placeholder khi thay mật khẩu; giữ lại hai dấu
+   này sẽ làm mật khẩu gửi đến Atlas khác mật khẩu thật.
 
 Tham khảo: [Atlas connection setup](https://www.mongodb.com/docs/atlas/connect-to-database-deployment/),
 [connection strings](https://www.mongodb.com/docs/manual/reference/connection-string/).
@@ -78,8 +80,8 @@ Response thật còn có metadata/timestamp. Thiếu cấu hình hoặc ping DB 
 khởi tạo được. Khi gặp timeout: kiểm tra IP access list, cluster, database user,
 password encoding và biến môi trường đúng deployment; không đưa URI vào log.
 
-Health lỗi có thêm `database.errorCode`, chỉ chứa mã cố định, không chứa URI,
-password hoặc thông báo thô từ driver:
+Health lỗi có thêm `database.errorCode` và tên/mã driver đã lọc nếu có. Không
+chứa URI, password hoặc thông báo thô từ driver:
 
 | Mã | Kiểm tra |
 |---|---|

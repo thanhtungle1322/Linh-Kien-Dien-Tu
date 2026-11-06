@@ -30,6 +30,7 @@ test('health distinguishes authentication and network failures without leaking d
   const { closeDatabase } = require('../db/database');
   for (const [error, expected] of [
     [Object.assign(new Error('sensitive-uri-marker'), { code: 18 }), 'MONGODB_AUTH_FAILED'],
+    [Object.assign(new Error('bad auth : authentication failed; sensitive-uri-marker'), { name: 'MongoServerError', code: 8000 }), 'MONGODB_AUTH_FAILED'],
     [Object.assign(new Error('sensitive-uri-marker'), { code: 13 }), 'MONGODB_PERMISSION_DENIED'],
     [Object.assign(new Error('sensitive-uri-marker'), { name: 'MongoServerSelectionError' }), 'MONGODB_NETWORK_FAILED']
   ]) {
@@ -40,6 +41,10 @@ test('health distinguishes authentication and network failures without leaking d
       assert.equal(response.status, 503);
       assert.equal(response.body.database.errorCode, expected);
       assert.ok(!JSON.stringify(response.body).includes('sensitive-uri-marker'));
+      if (error.code === 8000) {
+        assert.equal(response.body.database.driverName, 'MongoServerError');
+        assert.equal(response.body.database.driverCode, 8000);
+      }
     } finally { stub.mock.restore(); await closeDatabase(); }
   }
 });

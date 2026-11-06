@@ -2,15 +2,30 @@
 
 ## Connection diagnosis follow-up
 
-- Production GET `/api/health` reproduced HTTP 503 and POST `/api/auth/login`
-  HTTP 500. Database connection remains unverified/unavailable; no repair claim.
+- Confirmed local root cause: URI password retained the template's outer angle
+  brackets. Removing only those wrappers succeeded against real Atlas. Updated
+  the ignored local `.env` without printing credentials. Production subsequently
+  recovered after its configuration was updated/redeployed.
+- Atlas authentication code 8000 is now recognized; safe driver name/code can
+  accompany health errors. New assertions failed before the classifier update;
+  all 26 offline tests pass afterward. Independent re-review: 0 blockers.
+- Seed completed against the configured real storefront database, preserving
+  existing records. Real Atlas HTTP verification (no mocks): health 200, catalog
+  200 with 8 products, customer login 200, own order 200, cross-user order 403.
+  These are local HTTP requests using Atlas, not Vercel production evidence.
+- Production independently verified on `https://electroshopgood.vercel.app`:
+  health 200/connected, catalog 200/eight products, customer login 200, own order
+  200 and cross-user order 403. No mocked boundaries in these production probes.
+
+- Initial production GET `/api/health` reproduced HTTP 503 and POST
+  `/api/auth/login` HTTP 500, before the configuration correction above.
 - Added allowlisted `database.errorCode` to health and safe code-only logging.
   Driver exception text, URI and credentials are not returned or logged here.
 - `npm test`: 26 passed with driver mocked, including missing URI/database name,
   authentication, permission and network failures. New diagnostic assertions
   failed before implementation. Patch integrity passed.
-- Atlas production credentials and Vercel log access are unavailable locally;
-  deployed diagnostics are needed to distinguish the actual failure category.
+- At initial diagnosis, credentials and Vercel log access were unavailable;
+  deployed diagnostics plus the later local `.env` established the auth failure.
 
 - Runtime storage: MongoDB only for users, products and orders. No RAM fallback.
 - `npm run seed:db` upserts seed records without replacing existing documents.

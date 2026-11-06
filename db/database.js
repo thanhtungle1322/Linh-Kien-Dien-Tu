@@ -7,14 +7,27 @@ const failureCodes = new Set(['MONGODB_URI_MISSING', 'MONGODB_DB_NAME_MISSING',
 function failureCode(error) {
   if (failureCodes.has(error?.code)) return error.code;
   if (error?.code === 18) return 'MONGODB_AUTH_FAILED';
+  if (error?.code === 8000 && /bad auth|authentication failed/i.test(error?.message || '')) return 'MONGODB_AUTH_FAILED';
   if (error?.code === 13) return 'MONGODB_PERMISSION_DENIED';
   if (error?.name === 'MongoParseError' || error?.name === 'MongoInvalidArgumentError') return 'MONGODB_URI_INVALID';
-  if (['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL', 'ECONNREFUSED'].includes(error?.code) &&
+  if (['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL', 'ECONNREFUSED', 'ETIMEOUT'].includes(error?.code) &&
       String(error?.syscall || '').includes('query')) return 'MONGODB_DNS_FAILED';
   if (['MongoServerSelectionError', 'MongoNetworkError', 'MongoNetworkTimeoutError'].includes(error?.name)) {
     return 'MONGODB_NETWORK_FAILED';
   }
   return 'MONGODB_CONNECTION_FAILED';
+}
+function diagnostics(error) {
+  const names = new Set(['Error', 'TypeError', 'MongoServerError', 'MongoAPIError',
+    'MongoParseError', 'MongoInvalidArgumentError', 'MongoServerSelectionError',
+    'MongoNetworkError', 'MongoNetworkTimeoutError', 'MongoRuntimeError', 'MongoTopologyClosedError']);
+  const codes = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL', 'ECONNREFUSED', 'ETIMEOUT',
+    'ETIMEDOUT', 'ECONNRESET', 'ERR_INVALID_URL', 'ERR_INVALID_ARG_TYPE']);
+  const name = error?.driverName || error?.name;
+  const code = error?.driverCode ?? error?.code;
+  return { errorCode: failureCode(error),
+    ...(names.has(name) ? { driverName: name } : {}),
+    ...(Number.isSafeInteger(code) || codes.has(code) ? { driverCode: code } : {}) };
 }
 
 async function getDatabase() {
@@ -31,7 +44,7 @@ async function getDatabase() {
       .catch(async error => {
         connecting = undefined;
         await current.close().catch(() => {});
-        throw Object.assign(new Error('MongoDB connection failed'), { code: failureCode(error) });
+        throw Object.assign(new Error('MongoDB connection failed'), diagnostics(error), { code: failureCode(error) });
       });
   }
   return connecting;
@@ -109,4 +122,4 @@ async function seedDatabase() {
     } })));
   }
 }
-module.exports = { db, dbConnection, health, closeDatabase, seedDatabase, failureCode };
+module.exports = { db, dbConnection, health, closeDatabase, seedDatabase, diagnostics };
