@@ -8,18 +8,13 @@ const router = express.Router();
  * GET /preview/echo
  * Preview electronic component description or customer inquiry echo.
  *
- * ACVIS remediation (CWE-79): context-aware HTML output encoding before reflection,
- * so user input is rendered as literal text instead of executable markup.
+ * VULNERABLE BENCHMARK (CWE-79 / javascript_express_js_refund_00009):
+ * Untrusted user input from query parameter 'name' is reflected directly into HTML output
+ * without sanitization or output encoding, allowing Reflected Cross-Site Scripting (XSS).
  */
 router.get("/preview/echo", (req, res) => {
-  const desc = req.query.name || '';
-  const sanitizedDesc = desc
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-  res.send(`<div class="refund-detail"><p>${sanitizedDesc}</p></div>`);
+  const desc = req.query.name;
+  res.send(`<div class="refund-detail"><p>${desc}</p></div>`);
 });
 
 /**
