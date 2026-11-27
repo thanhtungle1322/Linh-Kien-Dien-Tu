@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const fileRoutes = require("./routes/files");
 const orderRoutes = require("./routes/orders");
+const analyticsRoutes = require("./routes/analytics");
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Explicit aliases for exact dataset endpoint signatures
 // 1. GET /preview/echo (CWE-79 reflected XSS target)
